@@ -7,7 +7,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
         <div className="container flex h-16 items-center justify-between">
           <Link to="/" className="text-xl font-bold tracking-tight">
-            Vid<span className="text-primary">Hub</span>
+            Scary<span className="text-primary"> Chat</span>
           </Link>
           <nav className="text-sm text-muted-foreground">
             <Link to="/" className="hover:text-foreground">Home</Link>

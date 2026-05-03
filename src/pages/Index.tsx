@@ -9,7 +9,7 @@ const Index = () => {
   const [posts, setPosts] = useState<Post[] | null>(null);
 
   useEffect(() => {
-    document.title = "VidHub — Watch & Discover";
+    document.title = "Scary Chat — Watch & Discover";
     (async () => {
       try {
         const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
@@ -25,7 +25,7 @@ const Index = () => {
   return (
     <SiteShell>
       <section className="container py-10">
-        <header className="mb-8">
+        <header className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Latest Videos</h1>
           <p className="mt-2 text-muted-foreground">Tap a card to unlock the video link.</p>
         </header>

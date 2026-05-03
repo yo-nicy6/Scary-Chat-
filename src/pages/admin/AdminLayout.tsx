@@ -15,7 +15,7 @@ export default function AdminLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    document.title = "Admin — VidHub";
+    document.title = "Admin";
     return onAuthStateChanged(auth, (u) => setUser(u));
   }, []);
 
@@ -68,24 +68,31 @@ export default function AdminLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="border-b border-border bg-card">
-        <div className="container flex h-16 items-center justify-between">
-          <Link to="/secret-admin" className="text-lg font-bold">VidHub Admin</Link>
-          <nav className="flex items-center gap-2">
-            <NavLink to="/secret-admin" end className={linkCls}>Dashboard</NavLink>
-            <NavLink to="/secret-admin/posts" className={linkCls}>Posts</NavLink>
-            <NavLink to="/secret-admin/ads" className={linkCls}>Ads</NavLink>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={async () => {
-                await signOut(auth);
-                navigate("/secret-admin");
-              }}
-            >
-              Sign out
-            </Button>
-          </nav>
+        <div className="container relative flex h-20 items-center justify-center">
+          <Link
+            to="/secret-admin"
+            className="text-3xl font-extrabold tracking-widest text-black dark:text-white"
+            style={{ textShadow: "0 0 12px hsl(0 90% 50% / 0.85), 0 0 24px hsl(0 90% 45% / 0.6)" }}
+          >
+            ADMIN
+          </Link>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute right-0"
+            onClick={async () => {
+              await signOut(auth);
+              navigate("/secret-admin");
+            }}
+          >
+            Sign out
+          </Button>
         </div>
+        <nav className="container flex items-center justify-center gap-2 pb-3">
+          <NavLink to="/secret-admin" end className={linkCls}>Dashboard</NavLink>
+          <NavLink to="/secret-admin/posts" className={linkCls}>Posts</NavLink>
+          <NavLink to="/secret-admin/ads" className={linkCls}>Ads</NavLink>
+        </nav>
       </header>
       <main className="flex-1">
         <Outlet />

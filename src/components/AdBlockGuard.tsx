@@ -44,10 +44,8 @@ export function AdBlockGuard() {
       if (!cancelled) setBlocked(isBlocked);
     };
     run();
-    const interval = setInterval(run, 4000);
     return () => {
       cancelled = true;
-      clearInterval(interval);
     };
   }, []);
 

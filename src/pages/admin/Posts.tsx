@@ -118,7 +118,33 @@ export default function PostsAdmin() {
             </DialogHeader>
             <div className="grid gap-4">
               {fld("title", "Title")}
-              {fld("thumbnail", "Thumbnail URL")}
+              <div className="space-y-2">
+                <Label>Thumbnail</Label>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleThumbUpload}
+                />
+                <div className="flex items-center gap-3">
+                  {form.thumbnail && (
+                    <img src={form.thumbnail} alt="thumb" className="h-16 w-28 rounded-md object-cover border" />
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    {uploading ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading…</>
+                    ) : (
+                      <><Upload className="mr-2 h-4 w-4" /> {form.thumbnail ? "Replace image" : "Upload image"}</>
+                    )}
+                  </Button>
+                </div>
+              </div>
               {fld("description", "Description", "text", true)}
               {fld("finalLink", "Final video link")}
               {fld("step1AdLink", "Step 1 ad link")}

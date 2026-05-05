@@ -153,7 +153,7 @@ export default function PostsAdmin() {
                 {fld("requiredClicks", "Required clicks", "number")}
                 {fld("timerSeconds", "Timer (seconds)", "number")}
               </div>
-              <Button onClick={save}>{editing ? "Update" : "Create"}</Button>
+              <Button onClick={save} disabled={uploading}>{editing ? "Update" : "Create"}</Button>
             </div>
           </DialogContent>
         </Dialog>

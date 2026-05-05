@@ -11,12 +11,31 @@ export interface Post {
   createdAt?: number;
 }
 
-export interface AdsConfig {
+export interface AdSlotConfig {
+  html: string;
+  enabled: boolean;
+  updatedAt?: number;
+}
+
+export type AdSlotKey =
+  | "global"
+  | "header"
+  | "footer"
+  | "inContent"
+  | "step1"
+  | "step2"
+  | "sidebar"
+  | "popup"
+  | "native"
+  | "socialBar";
+
+export type AdsConfig = Partial<Record<AdSlotKey, AdSlotConfig>> & {
+  // legacy fields kept for back-compat reads
   headerHtml?: string;
   footerHtml?: string;
   inContentHtml?: string;
   popupHtml?: string;
-}
+};
 
 export interface PostAnalytics {
   views?: number;

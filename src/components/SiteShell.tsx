@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { AdSlot } from "./AdSlot";
+import { GlobalAdLoader } from "./GlobalAdLoader";
 
 export function SiteShell({ children }: { children: React.ReactNode }) {
   return (

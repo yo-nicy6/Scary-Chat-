@@ -89,7 +89,9 @@ export function StepFlow({ post, step, adLink, onComplete, completeLabel, onClic
           {post.description}
         </p>
 
-        <AdSlot slot="inContent" className="mb-8" />
+        <AdSlot slot="inContent" className="mb-6" />
+        <AdSlot slot={step === 1 ? "step1" : "step2"} className="mb-6" />
+        <AdSlot slot="native" className="mb-8" />
 
         <div className="flex flex-col items-center gap-3">
           <Button

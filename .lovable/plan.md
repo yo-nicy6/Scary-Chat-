@@ -1,97 +1,94 @@
-# Video Redirect Platform — Implementation Plan
+## Problem
 
-A modern, fast video content site with a 2-step redirection flow, Firebase backend, and a full admin panel.
+Two issues with the Ads system:
 
-## Public Site
+1. **Saved ad code doesn't actually run.** `AdSlot` uses `dangerouslySetInnerHTML`, but browsers do **not** execute `<script>` tags injected that way. So pasting AdSense / Adsterra / Monetag / PopAds snippets saves to Firestore but nothing renders or fires.
+2. **Ads Manager UI is too thin** — one flat list of 4 textareas, no preview, no enable/disable, no per-slot save, no presets, no guidance.
 
-**Homepage (`/`)**
-- Responsive grid of video cards (thumbnail, title, hover lift + soft shadow)
-- Skeleton shimmer placeholders while Firestore loads
-- Header ad slot, footer ad slot
-- Black/white theme, rounded cards, soft elevation
+## Fix 1 — Make ad scripts actually execute (`src/components/AdSlot.tsx`)
 
-**Step 1 page (`/post/:id/step-1`)**
-- Title, thumbnail, description, "Step 1" label, "1/2" progress bar
-- Button "Click Here for Link":
-  - First N clicks (configurable per post) open the Step 1 ad link in a new tab
-  - After required clicks → button becomes "Please wait 8s…" with countdown
-  - When timer ends → button becomes "Continue to Step 2" → routes to Step 2
-- Red glow animation on click, in-content ad slot
-- Tracks: page view, each click, completion
+Rewrite the renderer so injected `<script>` tags run:
 
-**Step 2 page (`/post/:id/step-2`)**
-- Same layout, "Step 2" label, "2/2" progress
-- Same click + timer logic using Step 2 ad link
-- Final button "Get Video Link" → opens final video link
-- Tracks: view, clicks, final conversion
+- Parse the saved HTML with `DOMParser`.
+- For every node: append non-script nodes directly; for `<script>` nodes, create a fresh `document.createElement("script")`, copy attributes (`src`, `async`, `data-*`, `type`, etc.) and `textContent`, then append. Browsers only execute scripts created this way.
+- Clear container on each Firestore update so re-saves don't stack duplicates.
+- Respect a new `enabled` flag — if the slot is disabled, render nothing.
+- Keep the existing `onSnapshot` listener so saving in admin updates every open tab instantly.
 
-**UX details**
-- Skeleton loaders on all data-loading screens
-- Smooth Framer-style transitions between steps
-- Mobile-first responsive layout
-- Referrer captured on first visit (direct / social / other)
+## Fix 2 — Expand the data model (`src/lib/types.ts`)
 
-## Admin Panel (hidden route `/secret-admin`)
+Replace the 4-field `AdsConfig` with a richer per-slot object:
 
-**Login** — Firebase Auth (email/password). Only authenticated users see admin UI.
+```ts
+type AdSlotConfig = { html: string; enabled: boolean; updatedAt?: number };
 
-**Dashboard**
-- Cards: total posts, total clicks, Step1→Step2 conversion %, Step2→Final %
-- Per-post click table (views, step1 clicks, step2 clicks, final conversions)
-- Top referrers breakdown (direct / social / other)
-
-**Post Manager**
-- List with edit/delete
-- Create/Edit form fields:
-  - Title, thumbnail URL, description
-  - Final video link
-  - Step 1 ad link, Step 2 ad link
-  - Required clicks (number)
-  - Timer duration (seconds)
-- Publishing auto-generates the two step routes (dynamic from `:id`)
-
-**Ads Manager**
-- Global slots: header, footer, in-content, popup/interstitial
-- Each slot stores raw HTML/script snippet
-- Per-post override toggle (optional override fields on the post)
-- Live updates — no redeploy needed
-
-## Data Model (Firestore)
-
-```text
-posts/{id}
-  title, thumbnail, description,
-  finalLink, step1AdLink, step2AdLink,
-  requiredClicks, timerSeconds,
-  createdAt
-
-ads/global
-  headerHtml, footerHtml, inContentHtml, popupHtml
-
-analytics/{postId}
-  views, step1Clicks, step2Clicks, finalConversions,
-  referrers: { direct, social, other }
-
-events/{autoId}   (optional raw log)
-  postId, type, referrer, ts
+interface AdsConfig {
+  header:     AdSlotConfig;
+  footer:     AdSlotConfig;
+  inContent:  AdSlotConfig;   // shown inside Step 1 + Step 2
+  step1:      AdSlotConfig;   // Step-1-only extra slot
+  step2:      AdSlotConfig;   // Step-2-only extra slot
+  sidebar:    AdSlotConfig;   // optional side rail on desktop
+  popup:      AdSlotConfig;   // interstitial / popunder
+  native:     AdSlotConfig;   // native banner (Adsterra etc.)
+  socialBar:  AdSlotConfig;   // sticky social bar
+  global:     AdSlotConfig;   // <head>-style loader injected once site-wide
+}
 ```
 
-Security rules: posts/ads readable by anyone, writable only by authenticated admin; analytics increments allowed from client via specific fields.
+`AdSlot` reads `cfg[slot].html` only when `cfg[slot].enabled`. A new `<GlobalAdLoader />` mounted in `SiteShell` injects `global.html` once at the top of `<body>` (used for AdSense `adsbygoogle.js`, Monetag loader, etc.).
 
-## Technical Notes
+Add `<AdSlot slot="step1" />` to `Step1.tsx`, `<AdSlot slot="step2" />` to `Step2.tsx`, `<AdSlot slot="socialBar" className="fixed bottom-0 ..." />` and `<GlobalAdLoader />` in `SiteShell`.
 
-- Stack: React + Vite + Tailwind + shadcn/ui + React Router (already in project)
-- Firebase SDK initialized with the provided config in `src/lib/firebase.ts`
-- Firestore for data; Firebase Auth for admin
-- Routes added to `App.tsx`:
-  - `/`, `/post/:id/step-1`, `/post/:id/step-2`
-  - `/secret-admin`, `/secret-admin/posts`, `/secret-admin/ads`
-- Reusable `<AdSlot slot="header" />` component pulls from `ads/global`
-- Skeleton components from shadcn for loaders
-- Click tracking via Firestore `increment()` before redirect
+## Fix 3 — Professional Ads Manager (`src/pages/admin/Ads.tsx`)
 
-## Out of Scope (for v1)
+Full rebuild using shadcn `Tabs`, `Switch`, `Dialog`, `Badge`:
 
-- Image uploads (use thumbnail URLs; can add Firebase Storage later)
-- Multi-admin role management
-- Real geo/device analytics beyond referrer category
+**Layout**
+```text
+┌─ Ads Manager ───────────────── [Save all] ─┐
+│  Live changes — saving updates the site    │
+│  immediately for every visitor.            │
+├────────────────────────────────────────────┤
+│ Tabs: Global | Header | Footer | In-content│
+│       Step 1 | Step 2 | Sidebar | Popup    │
+│       Native | Social Bar                  │
+├────────────────────────────────────────────┤
+│ [Slot card]                                │
+│   Title + description + Enabled switch     │
+│   Recommended sizes / network notes        │
+│   Preset menu: AdSense, Adsterra, Monetag, │
+│                PropellerAds, PopAds, Custom│
+│   Code editor (monospace textarea, 14 rows)│
+│   Char count · last updated timestamp      │
+│   [Preview] [Reset] [Save this slot]       │
+│                                            │
+│ ▸ Live preview (sandboxed iframe, srcDoc)  │
+│   renders the snippet exactly as users see │
+└────────────────────────────────────────────┘
+```
+
+**Behavior**
+- Per-slot **Enabled** toggle (writes immediately on change).
+- Per-slot **Save** button + a top-right **Save all** that writes the whole doc.
+- **Preset templates** drop ready-to-use snippets (placeholders for IDs/keys) for the common networks.
+- **Live preview** uses an `<iframe sandbox="allow-scripts allow-same-origin">` with `srcDoc` so the admin can verify the code actually loads before publishing.
+- **Validation hints**: warn when `<script>` has neither `src` nor body, when HTML looks empty, or when a snippet appears to be from a different network than the slot type.
+- **Last updated** timestamp under each slot (`updatedAt` written via `serverTimestamp`).
+- **Status badges**: green "Live" when enabled + has html, gray "Off", amber "Empty".
+- Toast on save; disable Save while writing.
+
+## Fix 4 — Backwards compatibility
+
+Old docs only have `headerHtml` / `footerHtml` / `inContentHtml` / `popupHtml`. On first load, migrate them in-memory into the new shape so the admin and `AdSlot` keep working; saving writes the new structure.
+
+## Files touched
+
+- `src/components/AdSlot.tsx` — DOMParser + real `<script>` execution, `enabled` flag, cleanup.
+- `src/components/GlobalAdLoader.tsx` — **new**, injects site-wide loader scripts once.
+- `src/components/SiteShell.tsx` — mount `GlobalAdLoader` + `socialBar` slot.
+- `src/pages/Step1.tsx` / `src/pages/Step2.tsx` — add per-step ad slots.
+- `src/lib/types.ts` — new `AdsConfig` shape.
+- `src/pages/admin/Ads.tsx` — full rebuild (tabs, presets, preview, per-slot save, switches, badges).
+
+No new dependencies required.

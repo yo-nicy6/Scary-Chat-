@@ -17,12 +17,14 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
         <AdSlot slot="header" className="container py-2" />
       </header>
       <main className="flex-1">{children}</main>
+      <AdSlot slot="socialBar" className="fixed bottom-0 left-0 right-0 z-30" />
       <footer className="mt-12 border-t border-border bg-card">
         <AdSlot slot="footer" className="container py-3" />
         <div className="container py-6 text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} VidHub. All rights reserved.
+          © {new Date().getFullYear()} Scary Chat. All rights reserved.
         </div>
       </footer>
+      <GlobalAdLoader />
     </div>
   );
 }

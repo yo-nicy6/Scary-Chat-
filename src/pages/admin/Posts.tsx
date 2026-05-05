@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { addDoc, collection, deleteDoc, doc, getDocs, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
+import { Loader2, Upload } from "lucide-react";
 import { db } from "@/lib/firebase";
+import { uploadToImgBB } from "@/lib/imgbb";
 import type { Post } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +29,24 @@ export default function PostsAdmin() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Post | null>(null);
   const [form, setForm] = useState(empty);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const handleThumbUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadToImgBB(file);
+      setForm((f) => ({ ...f, thumbnail: url }));
+      toast({ title: "Thumbnail uploaded" });
+    } catch (err) {
+      toast({ title: "Upload failed", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -98,7 +118,33 @@ export default function PostsAdmin() {
             </DialogHeader>
             <div className="grid gap-4">
               {fld("title", "Title")}
-              {fld("thumbnail", "Thumbnail URL")}
+              <div className="space-y-2">
+                <Label>Thumbnail</Label>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleThumbUpload}
+                />
+                <div className="flex items-center gap-3">
+                  {form.thumbnail && (
+                    <img src={form.thumbnail} alt="thumb" className="h-16 w-28 rounded-md object-cover border" />
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    {uploading ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading…</>
+                    ) : (
+                      <><Upload className="mr-2 h-4 w-4" /> {form.thumbnail ? "Replace image" : "Upload image"}</>
+                    )}
+                  </Button>
+                </div>
+              </div>
               {fld("description", "Description", "text", true)}
               {fld("finalLink", "Final video link")}
               {fld("step1AdLink", "Step 1 ad link")}
@@ -107,7 +153,7 @@ export default function PostsAdmin() {
                 {fld("requiredClicks", "Required clicks", "number")}
                 {fld("timerSeconds", "Timer (seconds)", "number")}
               </div>
-              <Button onClick={save}>{editing ? "Update" : "Create"}</Button>
+              <Button onClick={save} disabled={uploading}>{editing ? "Update" : "Create"}</Button>
             </div>
           </DialogContent>
         </Dialog>

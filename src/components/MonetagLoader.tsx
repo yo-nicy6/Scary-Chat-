@@ -78,5 +78,12 @@ export function MonetagLoader() {
     return () => unsub();
   }, [isAdmin]);
 
+  // Auto-trigger in-app interstitial on public route changes.
+  useEffect(() => {
+    if (isAdmin) return;
+    startInAppInterstitial();
+  }, [isAdmin, pathname]);
+
   return null;
 }
+

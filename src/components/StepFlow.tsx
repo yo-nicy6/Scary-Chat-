@@ -141,6 +141,47 @@ export function StepFlow({ post, step, adLink, onComplete, completeLabel, onClic
               </p>
             </div>
           )}
+
+          {phase !== "ready" && (
+            <div className="flex w-full max-w-sm flex-col items-center gap-2 rounded-2xl border border-primary/40 bg-gradient-to-br from-primary/10 to-transparent p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
+                <Zap className="h-3.5 w-3.5" />
+                Skip the wait
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground"
+                onClick={() => {
+                  if (!isMonetagReady()) {
+                    toast({ title: "Fast Track unavailable", description: "Ad SDK is still loading. Please try again." });
+                    return;
+                  }
+                  showRewardedInterstitial()
+                    .then(() => {
+                      onClickAd?.();
+                      onComplete();
+                    })
+                    .catch(() => {
+                      toast({ title: "Ad not completed", description: "Please watch the full ad to fast-track." });
+                    });
+                }}
+              >
+                <Zap className="mr-1.5 h-4 w-4" /> Fast Track (Watch Ad)
+              </Button>
+              <button
+                type="button"
+                className="text-[11px] text-muted-foreground underline-offset-2 hover:text-primary hover:underline"
+                onClick={() => {
+                  showRewardedPopup().catch(() => {
+                    toast({ title: "Popup blocked", description: "Allow popups to use this option." });
+                  });
+                }}
+              >
+                Or try the rewarded popup
+              </button>
+            </div>
+          )}
         </div>
       </article>
     </div>

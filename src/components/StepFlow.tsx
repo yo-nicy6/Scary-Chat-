@@ -64,7 +64,7 @@ export function StepFlow({ post, step, adLink, onComplete, completeLabel, onClic
     }
   };
 
-  let label = "Click Here for Link";
+  let label = "Click Here And Press Back";
   if (phase === "wait") label = `Please wait ${remaining}s…`;
   if (phase === "ready") label = completeLabel;
 
@@ -90,10 +90,8 @@ export function StepFlow({ post, step, adLink, onComplete, completeLabel, onClic
         </p>
 
         <AdSlot slot="inContent" className="mb-6" />
-        <AdSlot slot={step === 1 ? "step1" : "step2"} className="mb-6" />
-        <AdSlot slot="native" className="mb-8" />
 
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-4">
           <Button
             onClick={handleClick}
             disabled={phase === "wait"}
@@ -105,9 +103,40 @@ export function StepFlow({ post, step, adLink, onComplete, completeLabel, onClic
             {label}
           </Button>
           {phase === "click" && (
-            <p className="text-sm text-muted-foreground">
-              {clicks}/{required} clicks
-            </p>
+            <div className="flex w-full max-w-sm flex-col items-center gap-2 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Ads to view
+                </span>
+                <div className="flex gap-1.5">
+                  {Array.from({ length: required }).map((_, i) => {
+                    const filled = i < clicks;
+                    return (
+                      <span
+                        key={i}
+                        className={`h-2.5 w-2.5 rounded-full transition-all duration-300 ${
+                          filled
+                            ? "bg-primary shadow-glow scale-110"
+                            : "bg-muted border border-border"
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+              <p className="text-sm">
+                <span className="text-muted-foreground">You clicked: </span>
+                <span
+                  className="font-bold text-primary"
+                  style={{ textShadow: "0 0 10px hsl(var(--primary) / 0.6)" }}
+                >
+                  {clicks} / {required}
+                </span>
+              </p>
+              <p className="text-center text-xs text-muted-foreground">
+                Tap the button — an ad opens in a new tab. Just press Back to return.
+              </p>
+            </div>
           )}
         </div>
       </article>

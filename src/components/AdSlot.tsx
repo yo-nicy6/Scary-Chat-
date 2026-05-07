@@ -1,24 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { AdsConfig, AdSlotConfig, AdSlotKey } from "@/lib/types";
-
-const legacyMap: Partial<Record<AdSlotKey, keyof AdsConfig>> = {
-  header: "headerHtml",
-  footer: "footerHtml",
-  inContent: "inContentHtml",
-  popup: "popupHtml",
-};
-
-export function resolveSlot(cfg: AdsConfig | undefined, slot: AdSlotKey): AdSlotConfig {
-  const direct = cfg?.[slot] as AdSlotConfig | undefined;
-  if (direct && typeof direct === "object" && "html" in direct) {
-    return { html: direct.html || "", enabled: direct.enabled !== false };
-  }
-  const legacyKey = legacyMap[slot];
-  const legacyHtml = legacyKey ? (cfg?.[legacyKey] as string | undefined) : undefined;
-  return { html: legacyHtml || "", enabled: !!legacyHtml };
-}
+import type { AdsConfig, AdSlotKey } from "@/lib/types";
+import { BUILT_IN_ADS } from "@/lib/builtInAds";
 
 /**
  * Inject HTML into a container so that <script> tags actually execute.
@@ -50,41 +34,31 @@ export function injectHtmlWithScripts(container: HTMLElement, html: string) {
 
 export function AdSlot({
   slot,
-  override,
   className,
 }: {
   slot: AdSlotKey;
-  override?: string;
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [html, setHtml] = useState<string>("");
-  const [enabled, setEnabled] = useState<boolean>(true);
+  const [enabled, setEnabled] = useState<boolean>(false);
 
   useEffect(() => {
-    if (override !== undefined) {
-      setHtml(override);
-      setEnabled(true);
-      return;
-    }
     const unsub = onSnapshot(doc(db, "ads", "global"), (snap) => {
       const cfg = (snap.data() as AdsConfig | undefined) || {};
-      const r = resolveSlot(cfg, slot);
-      setHtml(r.html);
-      setEnabled(r.enabled);
+      setEnabled(!!cfg[slot]);
     });
     return () => unsub();
-  }, [slot, override]);
+  }, [slot]);
 
   useEffect(() => {
     if (!ref.current) return;
-    if (!enabled || !html) {
+    if (!enabled) {
       ref.current.innerHTML = "";
       return;
     }
-    injectHtmlWithScripts(ref.current, html);
-  }, [html, enabled]);
+    injectHtmlWithScripts(ref.current, BUILT_IN_ADS[slot] || "");
+  }, [enabled, slot]);
 
-  if (!enabled || !html) return null;
+  if (!enabled) return null;
   return <div ref={ref} className={className} />;
 }

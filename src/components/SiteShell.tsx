@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { AdSlot } from "./AdSlot";
-import { GlobalAdLoader } from "./GlobalAdLoader";
+import { MonetagLoader } from "./MonetagLoader";
 
 export function SiteShell({ children }: { children: React.ReactNode }) {
   return (
@@ -24,7 +24,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
           © {new Date().getFullYear()} Scary Chat. All rights reserved.
         </div>
       </footer>
-      <GlobalAdLoader />
+      <MonetagLoader />
     </div>
   );
 }

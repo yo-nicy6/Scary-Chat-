@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { AdsConfig } from "@/lib/types";
+import { startInAppInterstitial } from "@/lib/monetagSdk";
 
 type Key = "monetagPush" | "monetagVignette" | "monetagSdk";
 
@@ -77,5 +78,12 @@ export function MonetagLoader() {
     return () => unsub();
   }, [isAdmin]);
 
+  // Auto-trigger in-app interstitial on public route changes.
+  useEffect(() => {
+    if (isAdmin) return;
+    startInAppInterstitial();
+  }, [isAdmin, pathname]);
+
   return null;
 }
+

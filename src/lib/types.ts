@@ -11,31 +11,28 @@ export interface Post {
   createdAt?: number;
 }
 
-export interface AdSlotConfig {
-  html: string;
-  enabled: boolean;
-  updatedAt?: number;
-}
-
-export type AdSlotKey =
-  | "global"
+export type AdToggleKey =
+  | "monetagPush"
+  | "monetagVignette"
+  | "monetagSdk"
   | "header"
-  | "footer"
   | "inContent"
-  | "step1"
-  | "step2"
-  | "sidebar"
-  | "popup"
-  | "native"
+  | "footer"
   | "socialBar";
 
-export type AdsConfig = Partial<Record<AdSlotKey, AdSlotConfig>> & {
-  // legacy fields kept for back-compat reads
-  headerHtml?: string;
-  footerHtml?: string;
-  inContentHtml?: string;
-  popupHtml?: string;
-};
+export interface AdsConfig {
+  monetagPush?: boolean;
+  monetagVignette?: boolean;
+  monetagSdk?: boolean;
+  header?: boolean;
+  inContent?: boolean;
+  footer?: boolean;
+  socialBar?: boolean;
+  monetagDirectLink?: string;
+}
+
+// Slot keys that AdSlot still uses for built-in HTML snippets.
+export type AdSlotKey = "header" | "inContent" | "footer" | "socialBar";
 
 export interface PostAnalytics {
   views?: number;

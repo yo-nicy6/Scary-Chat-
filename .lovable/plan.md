@@ -1,94 +1,65 @@
-## Problem
+## 1. Move Monetag ads off `index.html` (hide them in admin)
 
-Two issues with the Ads system:
+Currently `index.html` loads three Monetag scripts (`al5sm.com/tag.min.js`, `n6wxm.com/vignette.min.js`, `libtl.com/sdk.js`). Because `index.html` boots for every route — including `/secret-admin/*` — those ad scripts also execute inside the admin panel.
 
-1. **Saved ad code doesn't actually run.** `AdSlot` uses `dangerouslySetInnerHTML`, but browsers do **not** execute `<script>` tags injected that way. So pasting AdSense / Adsterra / Monetag / PopAds snippets saves to Firestore but nothing renders or fires.
-2. **Ads Manager UI is too thin** — one flat list of 4 textareas, no preview, no enable/disable, no per-slot save, no presets, no guidance.
+**Changes**
+- Edit `index.html`: keep only the `<meta name="monetag" ...>` tag. Remove the three Monetag `<script>` blocks.
+- Create `src/components/MonetagLoader.tsx` that:
+  - Mounts the same three scripts into `<body>` once on the public site.
+  - Uses `useLocation()` to bail out (and remove already-injected scripts) when the path starts with `/secret-admin`.
+  - Guards against double-injection across re-renders with a module-level flag.
+- Mount `<MonetagLoader />` inside `SiteShell` (which only wraps public pages — not admin), so admin never loads them.
 
-## Fix 1 — Make ad scripts actually execute (`src/components/AdSlot.tsx`)
+## 2. Replace Ads Manager with a curated "Site Ads" panel
 
-Rewrite the renderer so injected `<script>` tags run:
+User doesn't want to author ad code in admin. Instead the site ships built-in essential ads and admin gets simple ON/OFF + link controls.
 
-- Parse the saved HTML with `DOMParser`.
-- For every node: append non-script nodes directly; for `<script>` nodes, create a fresh `document.createElement("script")`, copy attributes (`src`, `async`, `data-*`, `type`, etc.) and `textContent`, then append. Browsers only execute scripts created this way.
-- Clear container on each Firestore update so re-saves don't stack duplicates.
-- Respect a new `enabled` flag — if the slot is disabled, render nothing.
-- Keep the existing `onSnapshot` listener so saving in admin updates every open tab instantly.
+**Changes**
+- Rewrite `src/pages/admin/Ads.tsx` as a clean dashboard ("Site Ads") with cards for the bundled, important ad units only:
+  1. **Monetag In-Page Push** (loader script) — ON/OFF
+  2. **Monetag Vignette / Interstitial** — ON/OFF
+  3. **Monetag SDK / Direct Link** — ON/OFF + direct-link URL field used by Step buttons (replaces current `step1AdLink`/`step2AdLink` if empty)
+  4. **Header strip ad** — ON/OFF
+  5. **In-content native** — ON/OFF
+  6. **Footer banner** — ON/OFF
+  7. **Sticky social bar** — ON/OFF
+  - Each card shows a status badge (Live / Off), short description of where it appears, and a single Switch. No code editor, no presets, no preview — all snippets are hardcoded inside the app.
+- Settings persist in Firestore `ads/global` as `{ monetagPush, monetagVignette, monetagSdk, header, inContent, footer, socialBar, monetagDirectLink }` (all booleans + one string).
+- `MonetagLoader` and `AdSlot` read this config via `onSnapshot` and only inject what is enabled — so toggling in admin enables/disables ads instantly site-wide.
+- Bundled HTML snippets for header / inContent / footer / socialBar live in `src/lib/builtInAds.ts` (a small map) so there is no need for the admin to ever paste code.
 
-## Fix 2 — Expand the data model (`src/lib/types.ts`)
+## 3. Step 1 / Step 2 button redesign + themed click counter
 
-Replace the 4-field `AdsConfig` with a richer per-slot object:
+**Changes** in `src/components/StepFlow.tsx`:
+- Button label during the click phase becomes **"Click Here And Press Back"** (instead of "Click Here for Link"). After required clicks: switches to wait countdown, then to the existing `completeLabel`.
+- Below the button render a themed counter strip:
 
-```ts
-type AdSlotConfig = { html: string; enabled: boolean; updatedAt?: number };
+  ```text
+  Ads to view: ●●●○○      You clicked: 2 / 3
+  ```
 
-interface AdsConfig {
-  header:     AdSlotConfig;
-  footer:     AdSlotConfig;
-  inContent:  AdSlotConfig;   // shown inside Step 1 + Step 2
-  step1:      AdSlotConfig;   // Step-1-only extra slot
-  step2:      AdSlotConfig;   // Step-2-only extra slot
-  sidebar:    AdSlotConfig;   // optional side rail on desktop
-  popup:      AdSlotConfig;   // interstitial / popunder
-  native:     AdSlotConfig;   // native banner (Adsterra etc.)
-  socialBar:  AdSlotConfig;   // sticky social bar
-  global:     AdSlotConfig;   // <head>-style loader injected once site-wide
-}
-```
+  - Required count comes from `post.requiredClicks` (admin-controlled).
+  - Filled dots use `bg-primary` with `shadow-glow`; remaining dots use `bg-muted`. Dots animate (scale + glow pulse) when a click is registered.
+  - Numeric "X / Y" text uses `text-primary font-bold` with a subtle `drop-shadow` matching the red/dark theme so the user clearly sees progress.
+  - Add a one-line helper under the counter: *"Tap the button, an ad will open in a new tab — just press Back to return."*
+- Counter is hidden once `phase !== "click"` and replaced with the existing wait/ready state.
 
-`AdSlot` reads `cfg[slot].html` only when `cfg[slot].enabled`. A new `<GlobalAdLoader />` mounted in `SiteShell` injects `global.html` once at the top of `<body>` (used for AdSense `adsbygoogle.js`, Monetag loader, etc.).
+## Technical details
 
-Add `<AdSlot slot="step1" />` to `Step1.tsx`, `<AdSlot slot="step2" />` to `Step2.tsx`, `<AdSlot slot="socialBar" className="fixed bottom-0 ..." />` and `<GlobalAdLoader />` in `SiteShell`.
+**Files to edit**
+- `index.html` — strip Monetag `<script>` tags, keep meta.
+- `src/components/SiteShell.tsx` — mount `<MonetagLoader />`.
+- `src/components/StepFlow.tsx` — new label + themed counter dots.
+- `src/lib/types.ts` — replace `AdsConfig` shape with the simpler boolean-flag config (keep legacy reads for safety).
+- `src/components/AdSlot.tsx` — read new boolean flags; pull HTML from `builtInAds.ts` instead of Firestore strings.
+- `src/components/GlobalAdLoader.tsx` — repurpose or delete (logic now in `MonetagLoader`).
+- `src/pages/admin/Ads.tsx` — full rewrite as toggle dashboard.
 
-## Fix 3 — Professional Ads Manager (`src/pages/admin/Ads.tsx`)
+**Files to create**
+- `src/components/MonetagLoader.tsx` — route-aware Monetag injector.
+- `src/lib/builtInAds.ts` — hardcoded snippets for the bundled slots.
 
-Full rebuild using shadcn `Tabs`, `Switch`, `Dialog`, `Badge`:
-
-**Layout**
-```text
-┌─ Ads Manager ───────────────── [Save all] ─┐
-│  Live changes — saving updates the site    │
-│  immediately for every visitor.            │
-├────────────────────────────────────────────┤
-│ Tabs: Global | Header | Footer | In-content│
-│       Step 1 | Step 2 | Sidebar | Popup    │
-│       Native | Social Bar                  │
-├────────────────────────────────────────────┤
-│ [Slot card]                                │
-│   Title + description + Enabled switch     │
-│   Recommended sizes / network notes        │
-│   Preset menu: AdSense, Adsterra, Monetag, │
-│                PropellerAds, PopAds, Custom│
-│   Code editor (monospace textarea, 14 rows)│
-│   Char count · last updated timestamp      │
-│   [Preview] [Reset] [Save this slot]       │
-│                                            │
-│ ▸ Live preview (sandboxed iframe, srcDoc)  │
-│   renders the snippet exactly as users see │
-└────────────────────────────────────────────┘
-```
-
-**Behavior**
-- Per-slot **Enabled** toggle (writes immediately on change).
-- Per-slot **Save** button + a top-right **Save all** that writes the whole doc.
-- **Preset templates** drop ready-to-use snippets (placeholders for IDs/keys) for the common networks.
-- **Live preview** uses an `<iframe sandbox="allow-scripts allow-same-origin">` with `srcDoc` so the admin can verify the code actually loads before publishing.
-- **Validation hints**: warn when `<script>` has neither `src` nor body, when HTML looks empty, or when a snippet appears to be from a different network than the slot type.
-- **Last updated** timestamp under each slot (`updatedAt` written via `serverTimestamp`).
-- **Status badges**: green "Live" when enabled + has html, gray "Off", amber "Empty".
-- Toast on save; disable Save while writing.
-
-## Fix 4 — Backwards compatibility
-
-Old docs only have `headerHtml` / `footerHtml` / `inContentHtml` / `popupHtml`. On first load, migrate them in-memory into the new shape so the admin and `AdSlot` keep working; saving writes the new structure.
-
-## Files touched
-
-- `src/components/AdSlot.tsx` — DOMParser + real `<script>` execution, `enabled` flag, cleanup.
-- `src/components/GlobalAdLoader.tsx` — **new**, injects site-wide loader scripts once.
-- `src/components/SiteShell.tsx` — mount `GlobalAdLoader` + `socialBar` slot.
-- `src/pages/Step1.tsx` / `src/pages/Step2.tsx` — add per-step ad slots.
-- `src/lib/types.ts` — new `AdsConfig` shape.
-- `src/pages/admin/Ads.tsx` — full rebuild (tabs, presets, preview, per-slot save, switches, badges).
-
-No new dependencies required.
+**Behavior guarantees**
+- Admin routes (`/secret-admin/*`) never inject Monetag or any ad snippet.
+- Toggling a switch in admin updates Firestore → `onSnapshot` propagates → ads appear/disappear on the public site without reload.
+- The Monetag `<meta>` tag stays in `index.html` as requested.

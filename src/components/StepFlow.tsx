@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { AdSlot } from "./AdSlot";
 import type { Post } from "@/lib/types";
+import { showRewardedInterstitial, showRewardedPopup, isMonetagReady } from "@/lib/monetagSdk";
+import { toast } from "@/hooks/use-toast";
+import { Zap } from "lucide-react";
 
 type Phase = "click" | "wait" | "ready";
 

@@ -7,11 +7,13 @@ import { SiteShell } from "@/components/SiteShell";
 import { StepFlow } from "@/components/StepFlow";
 import { trackEvent } from "@/lib/analytics";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2 } from "lucide-react";
 
 export default function Step2Page() {
   const { id } = useParams<{ id: string }>();
   const [post, setPost] = useState<Post | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -26,6 +28,21 @@ export default function Step2Page() {
       document.title = `${p.title} — Step 2`;
     })();
   }, [id]);
+
+  // Back-button hijack: prompt once before letting the user leave Step 2.
+  useEffect(() => {
+    window.history.pushState({ step2: true }, "");
+    const onPop = () => {
+      const stay = window.confirm("You'll lose your progress. Leave this step?");
+      if (stay) {
+        window.history.back();
+      } else {
+        window.history.pushState({ step2: true }, "");
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   if (notFound) {
     return (
@@ -57,15 +74,28 @@ export default function Step2Page() {
         post={post}
         step={2}
         adLink={post.step2AdLink}
-        completeLabel="Get Video Link"
+        completeLabel="Unlock Full Video"
         onClickAd={() => trackEvent(post.id, "step2Clicks")}
         onComplete={() => {
           trackEvent(post.id, "finalConversions");
-          if (post.finalLink) {
+          if (!post.finalLink) return;
+          setUnlocking(true);
+          setTimeout(() => {
             window.location.href = post.finalLink;
-          }
+          }, 1800);
         }}
       />
+      {unlocking && (
+        <div className="fixed inset-0 z-[120] flex flex-col items-center justify-center bg-background/95 backdrop-blur">
+          <div className="relative mb-4">
+            <Loader2 className="h-16 w-16 animate-spin text-primary drop-shadow-[0_0_24px_hsl(var(--primary))]" />
+          </div>
+          <p className="text-lg font-bold text-primary" style={{ textShadow: "0 0 12px hsl(var(--primary) / 0.7)" }}>
+            🔓 Unlocking your video…
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Don't close this tab</p>
+        </div>
+      )}
     </SiteShell>
   );
 }

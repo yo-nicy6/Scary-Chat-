@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 
 const empty: Omit<Post, "id"> = {
@@ -120,30 +121,54 @@ export default function PostsAdmin() {
               {fld("title", "Title")}
               <div className="space-y-2">
                 <Label>Thumbnail</Label>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleThumbUpload}
-                />
-                <div className="flex items-center gap-3">
-                  {form.thumbnail && (
-                    <img src={form.thumbnail} alt="thumb" className="h-16 w-28 rounded-md object-cover border" />
-                  )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => fileRef.current?.click()}
-                    disabled={uploading}
-                  >
-                    {uploading ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading…</>
-                    ) : (
-                      <><Upload className="mr-2 h-4 w-4" /> {form.thumbnail ? "Replace image" : "Upload image"}</>
-                    )}
-                  </Button>
-                </div>
+                <Tabs defaultValue="upload" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="upload">Upload</TabsTrigger>
+                    <TabsTrigger value="url">Paste URL</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="upload" className="mt-3">
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleThumbUpload}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileRef.current?.click()}
+                      disabled={uploading}
+                    >
+                      {uploading ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading…</>
+                      ) : (
+                        <><Upload className="mr-2 h-4 w-4" /> {form.thumbnail ? "Replace image" : "Upload image"}</>
+                      )}
+                    </Button>
+                  </TabsContent>
+                  <TabsContent value="url" className="mt-3">
+                    <Input
+                      type="url"
+                      placeholder="https://example.com/image.jpg"
+                      value={form.thumbnail}
+                      onChange={(e) => setForm({ ...form, thumbnail: e.target.value })}
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">Paste a direct image URL — saves as-is.</p>
+                  </TabsContent>
+                </Tabs>
+                {form.thumbnail && (
+                  <div className="flex items-center gap-3 pt-2">
+                    <img src={form.thumbnail} alt="thumb" className="h-16 w-28 rounded-md border object-cover" />
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground underline-offset-2 hover:text-destructive hover:underline"
+                      onClick={() => setForm({ ...form, thumbnail: "" })}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
               </div>
               {fld("description", "Description", "text", true)}
               {fld("finalLink", "Final video link")}

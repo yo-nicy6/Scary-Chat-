@@ -4,9 +4,14 @@ import { db } from "@/lib/firebase";
 import type { Post } from "@/lib/types";
 import { SiteShell } from "@/components/SiteShell";
 import { VideoCard, VideoCardSkeleton } from "@/components/VideoCard";
+import { AgeGate } from "@/components/AgeGate";
+import { SocialProofTicker } from "@/components/SocialProofTicker";
+import { fakeLiveViewers } from "@/lib/fakeStats";
+import { Flame } from "lucide-react";
 
 const Index = () => {
   const [posts, setPosts] = useState<Post[] | null>(null);
+  const [live, setLive] = useState(fakeLiveViewers());
 
   useEffect(() => {
     document.title = "Scary Chat — Watch & Discover";
@@ -20,14 +25,24 @@ const Index = () => {
         setPosts([]);
       }
     })();
+    const t = setInterval(() => setLive(fakeLiveViewers()), 7000);
+    return () => clearInterval(t);
   }, []);
 
   return (
     <SiteShell>
-      <section className="container py-10">
-        <header className="mb-8 text-center">
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Latest Videos</h1>
-          <p className="mt-2 text-muted-foreground">Tap a card to unlock the video link.</p>
+      <AgeGate />
+      <section className="container py-8">
+        <header className="mb-6 text-center">
+          <div className="mx-auto mb-3 inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-red-500" />
+            {live.toLocaleString()} watching now
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+            <Flame className="mr-2 inline h-7 w-7 text-primary" />
+            Trending Tonight
+          </h1>
+          <p className="mt-2 text-muted-foreground">Tap a card to unlock the full video — limited slots tonight.</p>
         </header>
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -38,6 +53,7 @@ const Index = () => {
             : posts.map((p) => <VideoCard key={p.id} post={p} />)}
         </div>
       </section>
+      <SocialProofTicker />
     </SiteShell>
   );
 };
